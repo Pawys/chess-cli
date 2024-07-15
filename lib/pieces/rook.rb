@@ -1,3 +1,4 @@
+require_relative '../piece'
 class Rook < Piece
   def get_possible_moves()
     @possible_moves = []

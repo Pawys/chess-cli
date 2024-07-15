@@ -22,7 +22,7 @@ class Piece
     return 'impossible_move' if !(1..8).to_a.include?(move[-1].to_i) || !('a'..'h').to_a.include?(move[-2])
     square = @board.chessboard[move]
     return 'possible_move' unless square.is_occupied?
-    return 'capture' if square.occuping_piece.color != @color
+    return 'capture' if square.occupying_piece.color != @color
     'impossible_move'
   end
   def add_moves(move_patterns)

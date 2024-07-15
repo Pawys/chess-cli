@@ -1,3 +1,4 @@
+require_relative '../piece'
 class Queen < Piece
   def get_possible_moves()
     @possible_moves = []
