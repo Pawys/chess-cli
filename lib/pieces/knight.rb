@@ -10,5 +10,6 @@ class Knight < Piece
         @possible_moves.push(move) if evaluate_move(move) != 'impossible_move'
       end
     end
+    sort_moves()
   end
 end
