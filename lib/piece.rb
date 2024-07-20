@@ -35,5 +35,9 @@ class Piece
         break if move_type == "capture"
       end
     end
+    sort_moves()
+  end
+  def sort_moves()
+    @possible_moves = @possible_moves.sort
   end
 end
