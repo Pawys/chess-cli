@@ -10,12 +10,10 @@ class Piece
     @board = board
   end
   def move(position)
-    @board.chessboard[@position].remove_piece()
     @position = position
     @file = position[0]
     @rank = position[1].to_i
     @has_moved = true
-    @board.chessboard[position].add_piece(self)
     get_possible_moves()
   end
   def evaluate_move(move)

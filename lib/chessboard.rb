@@ -10,14 +10,22 @@ class Chessboard
   FILES = ('a'..'h').to_a
   RANKS = (1..8).to_a
   INITIAL_POSITIONS = {
-    'a' => ['rook', 'rook'],
-    'b' => ['knight', 'knight'],
-    'c' => ['bishop', 'bishop'],
-    'd' => ['queen', 'queen'],
-    'e' => ['king', 'king'],
-    'f' => ['bishop', 'bishop'],
-    'g' => ['knight', 'knight'],
-    'h' => ['rook', 'rook']
+    'a' => Rook,
+    'b' => Knight,
+    'c' => Bishop,
+    'd' => Queen,
+    'e' => King,
+    'f' => Bishop,
+    'g' => Knight,
+    'h' => Rook
+  }
+  ICONS = {
+    Pawn => {'white' =>'♙','black' =>'♟︎'},
+    Knight => {'white' =>'♘','black' =>'♞'},
+    Bishop => {'white' =>'♗','black' =>'♝'},
+    Rook => {'white' =>'♖','black' =>'♜'},
+    Queen => {'white' =>'♕','black' =>'♛'},
+    King => {'white' =>'♔','black' =>'♚'}
   }
   attr_accessor :chessboard
   def initialize()
@@ -29,26 +37,54 @@ class Chessboard
       RANKS.each do |rank|
         position = "#{file}#{rank}"
         occupying_piece = nil
-        if rank == 2
+        if rank == 1
+          occupying_piece = INITIAL_POSITIONS[file].new(position, 'white',self)
+        elsif rank == 2
           occupying_piece = Pawn.new(position, 'white',self)
         elsif rank == 7
           occupying_piece = Pawn.new(position, 'black',self)
-        elsif rank == 1
-          occupying_piece = Pawn.new(position, 'white',self)
         elsif rank == 8
-          occupying_piece = Pawn.new(position, 'black',self)
+          occupying_piece = INITIAL_POSITIONS[file].new(position, 'black',self)
         end
         @chessboard[position] = Square.new(position, occupying_piece)
       end
     end
   end
-  def print_board
-    RANKS.reverse.each do |rank|
-      FILES.each do |file|
-        position = "#{file}#{rank}"
-        print "#{@chessboard[position].to_s} "
+  def move(int_pos,des_pos)
+    piece = chessboard[int_pos].occupying_piece
+    if !(piece == nil)
+      piece.get_possible_moves()
+      if piece.possible_moves.include?(des_pos)
+        piece.move(des_pos)
+        chessboard[int_pos].remove_piece()
+        chessboard[des_pos].add_piece(piece)
       end
-    puts ''
+    else
+      p 'no piece on square'
     end
+  end
+  def print_board
+    RANKS.reverse.each_with_index do |rank,indx|
+      FILES.each do |file|
+        if file == 'a'
+          print "#{rank}|"
+        end
+        position = "#{file}#{rank}"
+        square = chessboard[position]
+        if square.is_occupied?
+          print ICONS[square.occupying_piece.class][square.occupying_piece.color]
+          print ' '
+        else
+          print '  '
+        end
+      end
+      puts ''
+    end
+    puts '  ----------------'
+    print ' '
+    FILES.each do |file|
+      print " #{file}"
+    end
+    puts ''
   end
 end

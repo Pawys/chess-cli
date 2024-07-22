@@ -15,11 +15,7 @@ class Square
    @is_occupied = false
  end
  def to_s
-   if is_occupied?
-     @occupying_piece.color
-   else
-     @position 
-   end
+   @position
  end
  def is_occupied?
    @is_occupied
