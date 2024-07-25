@@ -11,6 +11,32 @@ class King < Piece
       next if evaluate_move(move) == 'impossible_move'
       @possible_moves << move
     end
+    check_castle()
     sort_moves()
+  end
+  def check_castle()
+    return if @has_moved
+    #check O-O
+    [3,-4].each do |pos|
+      rook = @board.chessboard["#{(@file.ord + pos).chr}#{@rank}"]&.occupying_piece
+      squares = []
+      if rook.class == Rook && !rook.has_moved
+        if pos.positive?
+          (pos-1).times do |i|
+            squares << @board.chessboard["#{(@file.ord + 1 + i).chr}#{@rank}"]
+          end
+          if squares.all? {|s| !s.is_occupied?}
+            @possible_moves << '0-0'
+          end
+        else
+          (pos.abs-1).times do |i|
+            squares << @board.chessboard["#{(@file.ord - 1 - i).chr}#{@rank}"]
+          end
+          if squares.all? {|s| !s.is_occupied?}
+            @possible_moves << '0-0-0'
+          end
+        end
+      end
+    end
   end
 end

@@ -17,6 +17,9 @@ class Square
  def to_s
    @position
  end
+ def inspect
+   to_s()
+ end 
  def is_occupied?
    @is_occupied
  end

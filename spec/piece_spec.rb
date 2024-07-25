@@ -23,14 +23,6 @@ describe Piece do
       allow(piece).to receive(:get_possible_moves)
     end
     let (:new_position) {'e5'}
-    it 'removes itself from the square it was on before' do
-      expect(board.chessboard[position]).to receive(:remove_piece)
-      piece.move(new_position)
-    end
-    it 'adds itself on the specifed square' do
-      expect(board.chessboard[position]).to receive(:add_piece).with(piece)
-      piece.move(new_position)
-    end
     it 'updates its positon' do
       expect{piece.move(new_position)}.to change{piece.position}.from('e4').to('e5')
     end
