@@ -1,5 +1,10 @@
 require_relative '../piece'
 class King < Piece
+  attr_accessor :in_check
+  def initialize(position,color,board)
+    @in_check = false
+    super(position,color,board)
+  end
   def get_possible_moves()
     @possible_moves = []
     move_patterns = [
@@ -26,14 +31,14 @@ class King < Piece
             squares << @board.chessboard["#{(@file.ord + 1 + i).chr}#{@rank}"]
           end
           if squares.all? {|s| !s.is_occupied?}
-            @possible_moves << '0-0'
+            @possible_moves << 'O-O'
           end
         else
           (pos.abs-1).times do |i|
             squares << @board.chessboard["#{(@file.ord - 1 - i).chr}#{@rank}"]
           end
           if squares.all? {|s| !s.is_occupied?}
-            @possible_moves << '0-0-0'
+            @possible_moves << 'O-O-O'
           end
         end
       end

@@ -32,7 +32,7 @@ describe King do
           board.chessboard["h1"].occupying_piece.has_moved = false
         end
         it 'add 0-0 to possible moves' do
-          expect{king.check_castle}.to change{king.possible_moves}.to (['0-0'])
+          expect{king.check_castle}.to change{king.possible_moves}.to (['O-O'])
         end
       end
       describe 'if the rook has moved' do
