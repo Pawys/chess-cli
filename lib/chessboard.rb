@@ -36,10 +36,13 @@ class Chessboard
     Queen => {'white' =>'♕','black' =>'♛'},
     King => {'white' =>'♔','black' =>'♚'}
   }
-  attr_accessor :chessboard, :pieces, :last_double_step_pawn
+  attr_accessor :chessboard, :pieces, :last_double_step_pawn, :white_king, :black_king
   def initialize()
-    @moves_pgn = '1. e4 e2 2. e2'
+    @pgn = ''
+    @current_move_number = 0
     @pieces = []
+    @white_pieces = []
+    @black_pieces = []
     @chessboard = Hash.new()
     @last_double_step_pawn
     create_board()
@@ -51,6 +54,11 @@ class Chessboard
         occupying_piece = add_pieces(file,rank,position)
         if occupying_piece != nil
           @pieces << occupying_piece
+          if occupying_piece.color == 'white'
+            @white_pieces << occupying_piece
+          else
+            @black_pieces << occupying_piece
+          end
         end
         @chessboard[position] = Square.new(position, occupying_piece)
       end
@@ -78,6 +86,31 @@ class Chessboard
   end
   def refresh_moves()
     @pieces.each {|piece| piece.get_possible_moves}
+  end
+  def reset()
+    @pieces = []
+    @current_move_number = 0
+    @chessboard = Hash.new()
+    @last_double_step_pawn = nil
+    @pgn = ''
+    create_board()
+  end
+  def save_to_pgn()
+  end
+  def load_from_pgn(pgn)
+    reset()
+    clean_pgn = pgn.gsub(/\d\/\d-?|[01]-[01]|\[.*\]/, '')
+    @pgn = clean_pgn
+    @current_move_number = @pgn.scan(/(\d+)\./).last&.first.to_i
+    moves = clean_pgn.gsub(/\d?\d\. ?/,'').strip.split(' ')
+    moves.each_with_index do |move,idx|
+      color = idx % 2 == 0 ? 'white' : 'black'
+      if !move(from_san(move,color))
+        p "Error: The move #{move} is incorrect"
+        reset()
+        break
+      end
+    end
   end
   # from_san
   def from_san(move,piece_color)
@@ -159,7 +192,7 @@ class Chessboard
   #move making
   def move(params)
     piece, des_pos, move_type,special_info = params
-    return unless valid_move?(piece,des_pos,special_info,move_type)
+    return false unless valid_move?(piece,des_pos,special_info,move_type)
 
     player_king = piece.color == 'white' ? @white_king : @black_king
 
@@ -170,7 +203,9 @@ class Chessboard
 
     if player_king.in_check
       @chessboard = Marshal.load(saved_state)
+      return false
     end
+    des_pos
   end
   def valid_move?(piece,des_pos,special_info,move_type)
     return false if piece == nil
@@ -249,6 +284,13 @@ class Chessboard
     end
     [rook,rook_target_pos,king_target_pos]
   end
+  def stalemate?()
+    [@white_king,@black_king].each do |king|
+      pieces = king.color == 'white' ? @white_pieces : @black_pieces
+      return true if pieces.all? {|piece| piece.possible_moves == []}
+    end
+    false
+  end
   def check_for_check()
     [@white_king,@black_king].each do |king|
       king.in_check = false
@@ -289,15 +331,8 @@ class Chessboard
     'board'
   end
 end
+pgn = <<-PGN
+1. e3 a5 2. Qh5 Ra6 3. Qxa5 h5 4. h4 Rah6 5. Qxc7 f6 6. Qxd7+ Kf7 7. Qxb7 Qd3 8. Qxb8 Qh7 9. Qxc8 Kg6 10. Qe6
+PGN
 chessboard = Chessboard.new()
-chessboard.move(chessboard.from_san('a4','white'))
-chessboard.move(chessboard.from_san('b6','black'))
-chessboard.move(chessboard.from_san('a5','white'))
-chessboard.move(chessboard.from_san('a6','black'))
-chessboard.move(chessboard.from_san('axb6','white'))
-chessboard.move(chessboard.from_san('a5','black'))
-chessboard.move(chessboard.from_san('bxc7','white'))
-chessboard.move(chessboard.from_san('h6','black'))
-chessboard.move(chessboard.from_san('cxb8=Q','white'))
-chessboard.move(chessboard.from_san('b5','black'))
-chessboard.print_board()
+chessboard.load_from_pgn(pgn)

@@ -19,6 +19,14 @@ class King < Piece
     check_castle()
     sort_moves()
   end
+  def evaluate_move(move)
+    move_type = super(move)
+    @board.pieces.each do |piece|
+      next if piece.color == color
+      return 'impossible_move' if piece.possible_moves.include?(move)
+    end
+    move_type
+  end
   def check_castle()
     return if @has_moved
     #check O-O
