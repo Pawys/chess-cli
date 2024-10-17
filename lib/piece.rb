@@ -38,4 +38,7 @@ class Piece
   def sort_moves()
     @possible_moves = @possible_moves.sort
   end
+  def icon
+    color == 'white' ? white_icon : black_icon
+  end
 end

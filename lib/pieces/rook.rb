@@ -11,4 +11,12 @@ class Rook < Piece
     @possible_moves = []
     add_moves(move_patterns)
   end
+
+  def white_icon
+    '♖'
+  end
+
+  def black_icon
+    '♜'
+  end
 end

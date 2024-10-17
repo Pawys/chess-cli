@@ -37,4 +37,12 @@ class Pawn < Piece
       @possible_moves << "#{passant_pawn_pos[0]}#{passant_pawn_pos[1].to_i + @move_direction}"
     end
   end
+  
+  def white_icon
+    '♙'
+  end
+
+  def black_icon
+    '♟︎'
+  end
 end

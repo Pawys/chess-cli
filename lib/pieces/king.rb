@@ -52,4 +52,11 @@ class King < Piece
       end
     end
   end
+  def white_icon
+    '♔'
+  end
+
+  def black_icon
+    '♚'
+  end
 end

@@ -12,4 +12,12 @@ class Knight < Piece
     end
     sort_moves()
   end
+
+  def white_icon
+    '♘'
+  end
+
+  def black_icon
+    '♞'
+  end
 end

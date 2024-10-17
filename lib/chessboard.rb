@@ -28,15 +28,7 @@ class Chessboard
     'g' => Knight,
     'h' => Rook
   }
-  ICONS = {
-    Pawn => {'white' =>'♙','black' =>'♟︎'},
-    Knight => {'white' =>'♘','black' =>'♞'},
-    Bishop => {'white' =>'♗','black' =>'♝'},
-    Rook => {'white' =>'♖','black' =>'♜'},
-    Queen => {'white' =>'♕','black' =>'♛'},
-    King => {'white' =>'♔','black' =>'♚'}
-  }
-  attr_accessor :chessboard, :pieces, :last_double_step_pawn, :white_king, :black_king
+  attr_accessor :chessboard, :pieces, :pgn ,:last_double_step_pawn, :white_king, :black_king
   def initialize()
     @pgn = ''
     @current_move_number = 0
@@ -95,7 +87,12 @@ class Chessboard
     @pgn = ''
     create_board()
   end
-  def save_to_pgn()
+  def save_to_pgn(move_notation,move_color)
+    if move_color == 'white'
+      @pgn << "#{@current_move_number}. #{move_notation}"
+    else
+      @pgn << " #{move_notation} "
+    end
   end
   def load_from_pgn(pgn)
     reset()
@@ -118,9 +115,10 @@ class Chessboard
     capture = get_capture_info(move)
     piece_location = get_piece_location(move,piece_class,capture)
     move_type,des_pos = get_move_type_and_pos(move)
+    move_type = 'en_passant' if get_en_passant(des_pos,piece_class,capture)
     piece = find_piece(piece_class,piece_color,piece_location,des_pos)
     special_info = get_special_info(move,move_type,piece_class,des_pos,capture)
-    [piece,des_pos,move_type,special_info]
+    [piece,des_pos,move_type,special_info,move]
   end
   def get_piece_class(move)
     SAN_NOTATION_LETTERS[move[0]] || Pawn
@@ -179,19 +177,71 @@ class Chessboard
   def get_special_info(move,move_type,piece_class,des_pos,capture)
     if move_type == 'promotion'
       get_promote_piece(move)
-    elsif piece_class == Pawn && capture == true
-      get_en_passant(des_pos)
     end
   end
   def get_promote_piece(move)
     SAN_NOTATION_LETTERS[move[-1]] || SAN_NOTATION_LETTERS[move[-2]]
   end
-  def get_en_passant(des_pos)
+  def get_en_passant(des_pos,piece_class,capture)
+    unless piece_class == Pawn && capture == true
+      return false
+    end
     'en_passant' if chessboard[des_pos].occupying_piece == nil
   end
-  #move making
+  #move makindg
+  def stalemate?()
+    [@white_pieces,@black_pieces].each do |pieces|
+      return true if pieces.all? {|p| p.possible_moves.all? {|m| move2(p.position,m) == false} == true}
+    end
+  end
+  def move2(org_pos,trg_pos)
+    piece = chessboard[org_pos].occupying_piece
+    if piece.nil?
+      p chessboard[org_pos].occupying_piece
+      p org_pos,trg_pos
+    end
+
+    player_king = piece.color == 'white' ? @white_king : @black_king
+
+    saved_state = Marshal.dump(@chessboard)
+
+    move_type = get_move_type(org_pos,trg_pos,piece)
+    handle_moves(piece,trg_pos,move_type,nil)
+    check_for_check()
+
+    if player_king.in_check
+      @chessboard = Marshal.load(saved_state)
+      return false
+    end
+    true
+  end
+  def get_move_type(org_pos,trg_pos,piece)
+    if trg_pos[0] == "O"
+      move_type = 'castle'
+    elsif piece.class == Pawn
+      if org_pos[0] != trg_pos[0] && chessboard[trg_pos].occupying_piece == nil
+        move_type = 'en_passant'
+      end
+    else 
+      move_type = 'normal'
+    end
+    move_type
+  end
+  def handle_moves(piece,des_pos,move_type,special_info)
+    case move_type
+    when 'castle'
+      perform_castle(piece,des_pos)
+    when 'promotion'
+      promote(piece,des_pos,special_info)
+    when 'en_passant'
+      perform_en_passant(piece,des_pos)
+    else
+      perform_move(piece,des_pos)
+    end
+    refresh_moves()
+  end
   def move(params)
-    piece, des_pos, move_type,special_info = params
+    piece, des_pos, move_type,special_info,move_notation = params
     return false unless valid_move?(piece,des_pos,special_info,move_type)
 
     player_king = piece.color == 'white' ? @white_king : @black_king
@@ -205,7 +255,10 @@ class Chessboard
       @chessboard = Marshal.load(saved_state)
       return false
     end
-    des_pos
+    if piece.color == 'white'
+      @current_move_number += 1
+    end
+    save_to_pgn(move_notation,piece.color)
   end
   def valid_move?(piece,des_pos,special_info,move_type)
     return false if piece == nil
@@ -213,21 +266,6 @@ class Chessboard
       return false if special_info == nil
     end
     piece.possible_moves.include?(des_pos)
-  end
-  def handle_moves(piece,des_pos,move_type,special_info)
-    case move_type
-    when 'castle'
-      perform_castle(piece,des_pos)
-    when 'promotion'
-      promote(piece,des_pos,special_info)
-    else
-      if special_info == 'en_passant'
-        perform_en_passant(piece,des_pos)
-      else
-        perform_move(piece,des_pos)
-      end
-    end
-    refresh_moves()
   end
   def add_piece(piece,des_pos)
     square = chessboard[des_pos]
@@ -284,13 +322,6 @@ class Chessboard
     end
     [rook,rook_target_pos,king_target_pos]
   end
-  def stalemate?()
-    [@white_king,@black_king].each do |king|
-      pieces = king.color == 'white' ? @white_pieces : @black_pieces
-      return true if pieces.all? {|piece| piece.possible_moves == []}
-    end
-    false
-  end
   def check_for_check()
     [@white_king,@black_king].each do |king|
       king.in_check = false
@@ -312,7 +343,7 @@ class Chessboard
         position = "#{file}#{rank}"
         square = chessboard[position]
         if square.is_occupied?
-          print ICONS[square.occupying_piece.class][square.occupying_piece.color]
+          print square.occupying_piece.icon
           print ' '
         else
           print '  '
@@ -331,8 +362,5 @@ class Chessboard
     'board'
   end
 end
-pgn = <<-PGN
-1. e3 a5 2. Qh5 Ra6 3. Qxa5 h5 4. h4 Rah6 5. Qxc7 f6 6. Qxd7+ Kf7 7. Qxb7 Qd3 8. Qxb8 Qh7 9. Qxc8 Kg6 10. Qe6
-PGN
 chessboard = Chessboard.new()
-chessboard.load_from_pgn(pgn)
+chessboard.print_board()
