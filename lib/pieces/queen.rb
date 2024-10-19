@@ -1,7 +1,6 @@
 require_relative '../piece'
 class Queen < Piece
-  def get_possible_moves()
-    @possible_moves = []
+  def possible_moves()
     move_patterns = [
       {file_moves: ('a'...@file).to_a.reverse, rank_moves: (@rank + 1..8)},           # Diagonal up-left
       {file_moves: (@file.next..'h').to_a, rank_moves: (1...@rank).to_a.reverse},     # Diagonal down-right
@@ -12,7 +11,7 @@ class Queen < Piece
       {file_moves: ('a'...@file).to_a.reverse, rank_moves: Array.new(8,@rank) },      # Left horizontal
       {file_moves: ((@file.next)..'h').to_a,rank_moves: Array.new(8,@rank) }          # Right horizontal
     ]
-    add_moves(move_patterns)
+    possible_move_patterns(move_patterns).sort
   end
   
   def white_icon

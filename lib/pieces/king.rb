@@ -5,8 +5,11 @@ class King < Piece
     @in_check = false
     super(position,color,board)
   end
-  def get_possible_moves()
-    @possible_moves = []
+  def possible_moves()
+    [normal_moves,castle_moves].flatten.compact.sort
+  end
+  def normal_moves()
+    normal_moves = []
     move_patterns = [
       [1, 0], [-1, 0], [0, 1], [0, -1], # horizontal and vertical moves
       [1, 1], [1, -1], [-1, 1], [-1, -1] # diagonal moves
@@ -14,43 +17,45 @@ class King < Piece
     move_patterns.each do |direction|
       move = "#{(@file.ord + direction[0]).chr}#{@rank + direction[1]}"
       next if evaluate_move(move) == 'impossible_move'
-      @possible_moves << move
+      normal_moves << move
     end
-    check_castle()
-    sort_moves()
+    normal_moves
   end
   def evaluate_move(move)
     move_type = super(move)
-    @board.pieces.each do |piece|
-      next if piece.color == color
+    @board.pieces.each do |piece,idx|
+      next if piece.color == @color
+      next if piece.class == King
       return 'impossible_move' if piece.possible_moves.include?(move)
     end
     move_type
   end
-  def check_castle()
+  def castle_moves()
     return if @has_moved
+    castle_moves = []
     #check O-O
     [3,-4].each do |pos|
-      rook = @board.chessboard["#{(@file.ord + pos).chr}#{@rank}"]&.occupying_piece
-      squares = []
+      rook = @board.chessboard["#{(@file.ord + pos).chr}#{@rank}"]
+      pieces = []
       if rook.class == Rook && !rook.has_moved
         if pos.positive?
           (pos-1).times do |i|
-            squares << @board.chessboard["#{(@file.ord + 1 + i).chr}#{@rank}"]
+            pieces << @board.chessboard["#{(@file.ord + 1 + i).chr}#{@rank}"]
           end
-          if squares.all? {|s| !s.is_occupied?}
-            @possible_moves << 'O-O'
+          if pieces.all? {|p| p.nil?}
+            castle_moves << 'O-O'
           end
         else
           (pos.abs-1).times do |i|
-            squares << @board.chessboard["#{(@file.ord - 1 - i).chr}#{@rank}"]
+            pieces << @board.chessboard["#{(@file.ord - 1 - i).chr}#{@rank}"]
           end
-          if squares.all? {|s| !s.is_occupied?}
-            @possible_moves << 'O-O-O'
+          if pieces.all? {|p| p.nil?}
+            castle_moves << 'O-O-O'
           end
         end
       end
     end
+    castle_moves
   end
   def white_icon
     '♔'

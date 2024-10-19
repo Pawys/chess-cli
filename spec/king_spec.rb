@@ -6,48 +6,47 @@ describe King do
       let(:position) { 'd3' }
       subject(:king) { described_class.new(position, 'white', board) }
     before do
-      board.chessboard[position].add_piece(king)
-      board.chessboard['e4'].add_piece(Pawn.new('e4','black',board))
-      board.chessboard['d4'].add_piece(Pawn.new('d4','black',board))
+      board.add_piece(king,position)
+      board.add_piece(Pawn.new('e4','black',board),'e4')
+      board.add_piece(Pawn.new('e5','black',board),'e5')
     end
     it 'returns correct possible moves' do
-      expected_result = ['c3','c4','d4','e3','e4']
-      expect{king.get_possible_moves}.to change{king.possible_moves}.to(expected_result)
+      expected_result = ['c3','c4','d4','e4']
+      expect(king.possible_moves).to eq(expected_result)
     end
   end
-  describe '#check_castle' do
+  describe '#castle_moves' do
     let(:position) { 'e1' }
     subject(:king) { described_class.new(position, 'white', board) }
     before do
-      board.chessboard[position].add_piece(king)
-      board.chessboard["e1"].add_piece(king)
+      board.add_piece(king,position)
     end
     describe 'when the squares need for the castle are empty' do
       before do
-        board.chessboard["f1"].remove_piece
-        board.chessboard["g1"].remove_piece
+        board.remove_piece('f1')
+        board.remove_piece('g1')
       end
       describe 'if the rook has not moved' do
         before do
-          board.chessboard["h1"].occupying_piece.has_moved = false
+          board.chessboard["h1"].has_moved = false
         end
-        it 'add 0-0 to possible moves' do
-          expect{king.check_castle}.to change{king.possible_moves}.to (['O-O'])
+        it 'add 0-0 to possibble moves' do
+          expect(king.castle_moves).to eq(['O-O'])
         end
       end
       describe 'if the rook has moved' do
         before do
-          board.chessboard["h1"].occupying_piece.has_moved = true
+          board.chessboard["h1"].has_moved = true
         end
         it 'doesnt add anything' do
-          king.check_castle()
+          king.castle_moves()
           expect(king.possible_moves).not_to include('O-O')
         end
       end
     end
     describe 'when the squares need for the castle arent empty' do
       it 'doesnt add anything' do
-        king.check_castle()
+        king.castle_moves()
         expect(king.possible_moves).not_to include('O-O')
       end
     end

@@ -52,10 +52,9 @@ class Chessboard
             @black_pieces << occupying_piece
           end
         end
-        @chessboard[position] = Square.new(position, occupying_piece)
+        @chessboard[position] = occupying_piece
       end
     end
-    refresh_moves()
   end
   def add_pieces(file,rank,position)
     case rank
@@ -75,9 +74,6 @@ class Chessboard
       end
     end
     occupying_piece
-  end
-  def refresh_moves()
-    @pieces.each {|piece| piece.get_possible_moves}
   end
   def reset()
     @pieces = []
@@ -195,7 +191,7 @@ class Chessboard
     end
   end
   def move2(org_pos,trg_pos)
-    piece = chessboard[org_pos].occupying_piece
+    piece = chessboard[org_pos]
     if piece.nil?
       p chessboard[org_pos].occupying_piece
       p org_pos,trg_pos
@@ -219,7 +215,7 @@ class Chessboard
     if trg_pos[0] == "O"
       move_type = 'castle'
     elsif piece.class == Pawn
-      if org_pos[0] != trg_pos[0] && chessboard[trg_pos].occupying_piece == nil
+      if org_pos[0] != trg_pos[0] && chessboard[trg_pos] == nil
         move_type = 'en_passant'
       end
     else 
@@ -238,7 +234,6 @@ class Chessboard
     else
       perform_move(piece,des_pos)
     end
-    refresh_moves()
   end
   def move(params)
     piece, des_pos, move_type,special_info,move_notation = params
@@ -268,21 +263,29 @@ class Chessboard
     piece.possible_moves.include?(des_pos)
   end
   def add_piece(piece,des_pos)
-    square = chessboard[des_pos]
-    if square.is_occupied?
-      @pieces.delete(square.occupying_piece)
+    occupying_piece = chessboard[des_pos]
+    if !occupying_piece.nil?
+      @pieces.delete(occupying_piece)
     end
-    square.add_piece(piece)
+    @pieces.push(piece)
+    chessboard[des_pos] = piece
+  end
+  def remove_piece(des_pos)
+    occupying_piece = chessboard[des_pos]
+    if !occupying_piece.nil?
+      @pieces.delete(occupying_piece)
+      chessboard[des_pos] = nil
+    end
   end
   def promote(piece,des_pos,promote_piece)
-    chessboard[piece.position].remove_piece
+    remove_piece(piece.position)
     piece = promote_piece.new(des_pos,piece.color,self)
     add_piece(piece,des_pos)
     @pieces.push(piece)
   end
   def perform_move(piece,des_pos)
     @last_double_step_pawn = piece if is_double_pawn_move?(piece,des_pos)
-    @chessboard[piece.position].remove_piece()
+    remove_piece(piece.position)
     add_piece(piece,des_pos)
     piece.move(des_pos)
   end
@@ -291,31 +294,31 @@ class Chessboard
     piece.position[1].to_i + (2*piece.move_direction) == des_pos[1].to_i
   end
   def perform_en_passant(piece,des_pos)
-    @chessboard[piece.position].remove_piece()
+    remove_piece(piece.position)
     add_piece(piece,des_pos)
-    @chessboard["#{des_pos[0]}#{des_pos[1].to_i - piece.move_direction}"].remove_piece()
+    remove_piece("#{des_pos[0]}#{des_pos[1].to_i - piece.move_direction}")
     piece.move(des_pos)
   end
   def perform_castle(king,castle_type)
     rook,rook_target_pos,king_target_pos = castle_positions(king,castle_type)
 
-    chessboard[king.position].remove_piece()
-    chessboard[rook.position].remove_piece()
+    remove_piece(king.position)
+    remove_piece(rook.position)
 
-    chessboard[king_target_pos].add_piece(king)
-    chessboard[rook_target_pos].add_piece(rook)
+    add_piece(king,king_target_pos)
+    add_piece(rook,rook_target_pos)
     
     king.move(king_target_pos)
     rook.move(rook_target_pos)
   end
   def castle_positions(king,castle_type)
     if castle_type == 'O-O'
-      rook = chessboard["#{(king.position[0].ord + 3).chr}#{king.position[1]}"].occupying_piece
+      rook = chessboard["#{(king.position[0].ord + 3).chr}#{king.position[1]}"]
 
       king_target_pos = "#{king.position[0].next.next}#{king.position[1]}"
       rook_target_pos = "#{king.position[0].next}#{king.position[1]}"
     else
-      rook = chessboard["#{(king.position[0].ord - 4).chr}#{king.position[1]}"].occupying_piece
+      rook = chessboard["#{(king.position[0].ord - 4).chr}#{king.position[1]}"]
 
       king_target_pos = "#{rook.position[0].next.next}#{king.position[1]}"
       rook_target_pos = "#{rook.position[0].next.next.next}#{king.position[1]}"
@@ -341,9 +344,9 @@ class Chessboard
           print "#{rank}|"
         end
         position = "#{file}#{rank}"
-        square = chessboard[position]
-        if square.is_occupied?
-          print square.occupying_piece.icon
+        piece = chessboard[position]
+        if !piece.nil?
+          print piece.icon
           print ' '
         else
           print '  '
@@ -362,5 +365,3 @@ class Chessboard
     'board'
   end
 end
-chessboard = Chessboard.new()
-chessboard.print_board()

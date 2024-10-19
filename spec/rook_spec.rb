@@ -7,11 +7,11 @@ describe Rook do
   subject(:rook) { described_class.new(position, 'white', board) }
   describe '#get_possible_moves' do
     before do
-      board.chessboard[position].add_piece(rook)
+      board.add_piece(rook,position)
     end
     it 'returns correct possible moves' do
       expected_result = ['a5','b5','c5','d3','d4','d6','d7','e5','f5','g5','h5']
-      expect{rook.get_possible_moves}.to change{rook.possible_moves}.to(expected_result)
+      expect(rook.possible_moves).to eq(expected_result)
     end
   end
 end

@@ -99,12 +99,10 @@ describe Chessboard do
       end
       context 'when two pieces can move to the position' do
         before do
-          chessboard.chessboard['a2'].remove_piece
-          chessboard.chessboard['a7'].remove_piece
+          chessboard.remove_piece('a2')
+          chessboard.remove_piece('a7')
           rook = Rook.new('a8','white',chessboard)
-          chessboard.chessboard['a8'].add_piece(Rook.new('a8','white',chessboard))
-          chessboard.pieces.push(rook)
-          chessboard.refresh_moves
+          chessboard.add_piece(rook,'a8')
         end
         context 'when piece location is specified' do
           it 'find the correct piece based on the location' do
@@ -224,7 +222,7 @@ describe Chessboard do
       context 'when the move is en_passant' do
         it 'perform en passant' do
           expect(chessboard).to receive(:perform_en_passant).with(Pawn,'e6')
-          chessboard.handle_moves(Pawn,'e6','capture','en_passant')
+          chessboard.handle_moves(Pawn,'e6','en_passant',nil)
         end
       end
       context 'when the move is not a special move' do
@@ -233,10 +231,6 @@ describe Chessboard do
           chessboard.handle_moves(Pawn,'e3','move',nil)
         end
       end
-      it 'refreshes the pieces moves' do
-        expect(chessboard).to receive(:refresh_moves).once
-        chessboard.handle_moves(Pawn,'e3','move',nil)
-      end
     end
     describe '#promote' do
       context 'when a piece moves to a new position' do
@@ -244,26 +238,26 @@ describe Chessboard do
         let(:move) {'b8'}
         let(:promote_piece) {Queen}
         before do
-          chessboard.chessboard['b8'].remove_piece
-          chessboard.chessboard['b7'].remove_piece
+          chessboard.remove_piece('b8')
+          chessboard.remove_piece('b7')
           chessboard.add_piece(pawn,'b7')
         end
         it 'removes the piece from the old square' do
-          expect{chessboard.promote(pawn,move,promote_piece)}.to change{chessboard.chessboard['b7'].occupying_piece}.from(pawn).to(nil)
+          expect{chessboard.promote(pawn,move,promote_piece)}.to change{chessboard.chessboard['b7']}.from(pawn).to (nil)
         end
         it 'adds a piece to the new square' do
           chessboard.promote(pawn,move,promote_piece)
-          expect(chessboard.chessboard['b8'].occupying_piece).to be_a(Queen)
-          expect(chessboard.chessboard['b8'].occupying_piece.color).to eq('white') 
+          expect(chessboard.chessboard['b8']).to be_a(Queen)
+          expect(chessboard.chessboard['b8'].color).to eq('white') 
         end
         it 'adds the piece to the pieces array' do
           chessboard.promote(pawn,move,promote_piece)
-          expect(chessboard.pieces).to include(chessboard.chessboard[move].occupying_piece)
+          expect(chessboard.pieces).to include(chessboard.chessboard[move])
         end
       end
     end
     describe '#perform_move' do
-      let(:pawn) {chessboard.chessboard['a2'].occupying_piece}
+      let(:pawn) {chessboard.chessboard['a2']}
       let(:move) {'a4'}
       context 'when pawn performs a double step move' do
         it 'sets the last double pawn' do
@@ -272,10 +266,10 @@ describe Chessboard do
       end
       context 'when a piece moves to a new position' do
         it 'removes the piece from the old square' do
-          expect{chessboard.perform_move(pawn,move)}.to change{chessboard.chessboard['a2'].occupying_piece}.from(pawn).to(nil)
+          expect{chessboard.perform_move(pawn,move)}.to change{chessboard.chessboard['a2']}.from(pawn).to(nil)
         end
         it 'adds a piece to the new square' do
-          expect{chessboard.perform_move(pawn,move)}.to change{chessboard.chessboard['a4'].occupying_piece}.from(nil).to(pawn)
+          expect{chessboard.perform_move(pawn,move)}.to change{chessboard.chessboard['a4']}.from(nil).to(pawn)
         end
         it 'changes the piece internal positon' do
           expect(pawn).to receive(:move).with(move)
@@ -308,20 +302,20 @@ describe Chessboard do
       let(:capture_pawn) {instance_double(Pawn)}
       let(:move) {'f4'}
       before do
-        chessboard.chessboard['e3'].add_piece(pawn)
-        chessboard.chessboard['f3'].add_piece(capture_pawn)
+        chessboard.add_piece(pawn,'e3')
+        chessboard.add_piece(capture_pawn,'f3')
         allow(pawn).to receive(:move)
         allow(pawn).to receive(:position).and_return('e3')
         allow(pawn).to receive(:move_direction).and_return(1)
       end
       it 'removes the captured piece from the old square' do
-        expect{chessboard.perform_en_passant(pawn,move)}.to change{chessboard.chessboard['f3'].occupying_piece}.from(capture_pawn).to(nil)
+        expect{chessboard.perform_en_passant(pawn,move)}.to change{chessboard.chessboard['f3']}.from(capture_pawn).to(nil)
       end
       it 'removes the piece from the old square' do
-        expect{chessboard.perform_en_passant(pawn,move)}.to change{chessboard.chessboard['e3'].occupying_piece}.from(pawn).to(nil)
+        expect{chessboard.perform_en_passant(pawn,move)}.to change{chessboard.chessboard['e3']}.from(pawn).to(nil)
       end
       it 'adds a piece to the new square' do
-        expect{chessboard.perform_en_passant(pawn,move)}.to change{chessboard.chessboard['f4'].occupying_piece}.from(nil).to(pawn)
+        expect{chessboard.perform_en_passant(pawn,move)}.to change{chessboard.chessboard['f4']}.from(nil).to(pawn)
       end
       it 'changes the piece internal positon' do
         expect(pawn).to receive(:move).with(move)
@@ -331,8 +325,8 @@ describe Chessboard do
     describe '#castle_positions' do
       context 'when castle type is long castle' do
         it 'returns correct positions' do
-          king = chessboard.chessboard['e1'].occupying_piece
-          rook = chessboard.chessboard['a1'].occupying_piece
+          king = chessboard.chessboard['e1']
+          rook = chessboard.chessboard['a1']
 
           result = chessboard.castle_positions(king,'O-O-O')
           expect(result).to eq([rook,'d1','c1'])
@@ -340,8 +334,8 @@ describe Chessboard do
       end
       context 'when castle type is short castle' do
         it 'returns correct positions' do
-          king = chessboard.chessboard['e8'].occupying_piece
-          rook = chessboard.chessboard['h8'].occupying_piece
+          king = chessboard.chessboard['e8']
+          rook = chessboard.chessboard['h8']
 
           result = chessboard.castle_positions(king,'O-O')
           expect(result).to eq([rook,'f8','g8'])
@@ -349,23 +343,23 @@ describe Chessboard do
       end
     end
     describe '#perform_castle' do
-      let(:king) {chessboard.chessboard['e1'].occupying_piece}
-      let(:rook) {chessboard.chessboard['h1'].occupying_piece}
+      let(:king) {chessboard.chessboard['e1']}
+      let(:rook) {chessboard.chessboard['h1']}
       before do
-        chessboard.chessboard['f1'].remove_piece
-        chessboard.chessboard['g1'].remove_piece
+        chessboard.remove_piece('f1')
+        chessboard.remove_piece('g1')
       end
       it 'removes the king from the old square' do
-        expect{chessboard.perform_castle(king,'O-O')}.to change{chessboard.chessboard['e1'].occupying_piece}.from(king).to(nil)
+        expect{chessboard.perform_castle(king,'O-O')}.to change{chessboard.chessboard['e1']}.from(king).to(nil)
       end
       it 'removes the rook from the old square' do
-        expect{chessboard.perform_castle(king,'O-O')}.to change{chessboard.chessboard['h1'].occupying_piece}.from(rook).to(nil)
+        expect{chessboard.perform_castle(king,'O-O')}.to change{chessboard.chessboard['h1']}.from(rook).to(nil)
       end
       it 'adds the king to the new square' do
-        expect{chessboard.perform_castle(king,'O-O')}.to change{chessboard.chessboard['g1'].occupying_piece}.from(nil).to(king)
+        expect{chessboard.perform_castle(king,'O-O')}.to change{chessboard.chessboard['g1']}.from(nil).to(king)
       end
       it 'adds the rook to the new square' do
-        expect{chessboard.perform_castle(king,'O-O')}.to change{chessboard.chessboard['f1'].occupying_piece}.from(nil).to(rook)
+        expect{chessboard.perform_castle(king,'O-O')}.to change{chessboard.chessboard['f1']}.from(nil).to(rook)
       end
       it 'changes the internal position of the king' do
         expect(king).to receive(:move).with('g1')
@@ -379,11 +373,10 @@ describe Chessboard do
     describe '#check_for_check' do
       context 'when a white king is in check' do
         before do
-          chessboard.chessboard['e2'].remove_piece
+          chessboard.remove_piece('e2')
           queen = Queen.new('e5','black',chessboard)
           chessboard.pieces.push(queen)
-          chessboard.chessboard['e5'].add_piece(queen)
-          chessboard.refresh_moves()
+          chessboard.add_piece(queen,'e5')
         end
         it 'changes in check to true' do
           expect{chessboard.check_for_check}.to change{chessboard.instance_variable_get(:@white_king).in_check}.from(false).to (true)
@@ -391,11 +384,9 @@ describe Chessboard do
       end
       context 'when a black king is in check' do
         before do
-          chessboard.chessboard['d7'].remove_piece
+          chessboard.remove_piece('d7')
           bishop = Bishop.new('b5','white',chessboard)
-          chessboard.pieces.push(bishop)
-          chessboard.chessboard['b5'].add_piece(bishop)
-          chessboard.refresh_moves()
+          chessboard.add_piece(bishop,'b5')
         end
         it 'changes in check to true' do
           expect{chessboard.check_for_check}.to change{chessboard.instance_variable_get(:@black_king).in_check}.from(false).to (true)
