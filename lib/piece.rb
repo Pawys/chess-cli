@@ -5,11 +5,10 @@ class Piece
     @file = position[0]
     @rank = position[1].to_i
     @color = color
-    @possible_moves = []
     @has_moved = false
     @board = board
   end
-  def move(position)
+  def update_position(position)
     @position = position
     @file = position[0]
     @rank = position[1].to_i

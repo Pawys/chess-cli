@@ -1,23 +1,15 @@
-require_relative 'square'
 require_relative 'pieces/pawn'
 require_relative 'pieces/rook'
 require_relative 'pieces/knight'
 require_relative 'pieces/bishop'
 require_relative 'pieces/queen'
 require_relative 'pieces/king'
+require_relative 'san_move_notation'
 
 class Chessboard
   BOARD_SIZE = 8
   FILES = ('a'..'h').to_a
   RANKS = (1..8).to_a
-  SAN_NOTATION_LETTERS = {
-    'R' => Rook,
-    'N' => Knight,
-    'B' => Bishop,
-    'Q' => Queen,
-    'K' => King,
-    'O' => King
-  }
   INITIAL_POSITIONS = {
     'a' => Rook,
     'b' => Knight,
@@ -28,7 +20,7 @@ class Chessboard
     'g' => Knight,
     'h' => Rook
   }
-  attr_accessor :chessboard, :pieces, :pgn ,:last_double_step_pawn, :white_king, :black_king
+  attr_accessor :chessboard, :pieces, :pgn ,:last_double_step_pawn, :white_king, :black_king, :current_move_number
   def initialize()
     @pgn = ''
     @current_move_number = 0
@@ -37,13 +29,13 @@ class Chessboard
     @black_pieces = []
     @chessboard = Hash.new()
     @last_double_step_pawn
-    create_board()
+    setup_board()
   end
-  def create_board()
+  def setup_board()
     FILES.each do |file|
       RANKS.each do |rank|
         position = "#{file}#{rank}"
-        occupying_piece = add_pieces(file,rank,position)
+        occupying_piece = populate_board(file,rank,position)
         if occupying_piece != nil
           @pieces << occupying_piece
           if occupying_piece.color == 'white'
@@ -56,7 +48,7 @@ class Chessboard
       end
     end
   end
-  def add_pieces(file,rank,position)
+  def populate_board(file,rank,position)
     case rank
     when 1
       occupying_piece = INITIAL_POSITIONS[file].new(position, 'white',self)
@@ -75,143 +67,126 @@ class Chessboard
     end
     occupying_piece
   end
-  def reset()
+  def reset_board()
     @pieces = []
     @current_move_number = 0
     @chessboard = Hash.new()
     @last_double_step_pawn = nil
     @pgn = ''
-    create_board()
+    setup_board()
   end
-  def save_to_pgn(move_notation,move_color)
+  def record_move_to_pgn(move_notation,move_color)
     if move_color == 'white'
+      @current_move_number += 1
       @pgn << "#{@current_move_number}. #{move_notation}"
     else
       @pgn << " #{move_notation} "
     end
   end
   def load_from_pgn(pgn)
-    reset()
-    clean_pgn = pgn.gsub(/\d\/\d-?|[01]-[01]|\[.*\]/, '')
-    @pgn = clean_pgn
-    @current_move_number = @pgn.scan(/(\d+)\./).last&.first.to_i
+    reset_board()
+    clean_pgn = pgn.gsub(/\d\/\d-?|[01]-[01]|\[.*\]|\n/, '').strip
+    return puts("invalid pgn.") if !pgn_valid?(clean_pgn)
     moves = clean_pgn.gsub(/\d?\d\. ?/,'').strip.split(' ')
     moves.each_with_index do |move,idx|
+      san_move = SanMoveNotation.new(move,self)
       color = idx % 2 == 0 ? 'white' : 'black'
-      if !move(from_san(move,color))
-        p "Error: The move #{move} is incorrect"
-        reset()
+      if !move_legal?(san_move.find_piece(color),san_move.trg_pos,san_move.move_type,san_move.promotion_piece)
+        puts "#{move} is an illegal move."
+        reset_board()
         break
-      end
-    end
-  end
-  # from_san
-  def from_san(move,piece_color)
-    piece_class = get_piece_class(move)
-    capture = get_capture_info(move)
-    piece_location = get_piece_location(move,piece_class,capture)
-    move_type,des_pos = get_move_type_and_pos(move)
-    move_type = 'en_passant' if get_en_passant(des_pos,piece_class,capture)
-    piece = find_piece(piece_class,piece_color,piece_location,des_pos)
-    special_info = get_special_info(move,move_type,piece_class,des_pos,capture)
-    [piece,des_pos,move_type,special_info,move]
-  end
-  def get_piece_class(move)
-    SAN_NOTATION_LETTERS[move[0]] || Pawn
-  end
-  def get_capture_info(move)
-    move.include?("x")
-  end
-  def get_piece_location(move,piece_class,capture)
-    if piece_class == Pawn
-      move[0] if capture == true
-    else
-      if move.length > 3
-        if FILES.include?(move[1]) && (FILES.include?(move[2] || move[2] == 'x'))
-          move[1]
-        elsif RANKS.include?(move[1])
-          move[1]
-        else
-          nil
-        end
-      end
-    end
-  end
-  def get_move_type_and_pos(move)
-    if move[0] == 'O'
-      des_pos = move
-      move_type = 'castle'
-    elsif move.include?('=')
-      move_type = 'promotion'
-      if move[-1] == "+" || move[-1] == '#'
-        des_pos = move[-5..-4]
       else
-        des_pos = move[-4..-3]
-      end
-    else
-      case move[-1]
-      when '1'..'8'
-        des_pos = move[-2..-1]
-        move_type = 'move'
-      when '+'
-        des_pos = move[-3..-2]
-        move_type = 'check'
-      else
-        move_type = 'mate'
-        des_pos = move[-3..-2]
+        process_move(san_move.find_piece(color),san_move.trg_pos,san_move.move_type,san_move.promotion_piece)
       end
     end
-    [move_type,des_pos]
+    @pgn = clean_pgn
+    @current_move_number = @pgn.scan(/(\d+)\./).last&.first.to_i
   end
-  def find_piece(piece_class, piece_color, piece_location, des_pos)
-    @pieces.find do |piece|
-      next unless piece.color == piece_color && piece.class == piece_class
-      next unless piece.possible_moves.include?(des_pos)
-      piece_location.nil? || piece.position.include?(piece_location.to_s)
-    end
-  end
-  def get_special_info(move,move_type,piece_class,des_pos,capture)
-    if move_type == 'promotion'
-      get_promote_piece(move)
-    end
-  end
-  def get_promote_piece(move)
-    SAN_NOTATION_LETTERS[move[-1]] || SAN_NOTATION_LETTERS[move[-2]]
-  end
-  def get_en_passant(des_pos,piece_class,capture)
-    unless piece_class == Pawn && capture == true
+
+  def pgn_valid?(pgn)
+    return false if pgn.nil?
+    if pgn[0..1] != "1."
       return false
-    end
-    'en_passant' if chessboard[des_pos].occupying_piece == nil
-  end
-  #move makindg
-  def stalemate?()
-    [@white_pieces,@black_pieces].each do |pieces|
-      return true if pieces.all? {|p| p.possible_moves.all? {|m| move2(p.position,m) == false} == true}
-    end
-  end
-  def move2(org_pos,trg_pos)
-    piece = chessboard[org_pos]
-    if piece.nil?
-      p chessboard[org_pos].occupying_piece
-      p org_pos,trg_pos
-    end
-
-    player_king = piece.color == 'white' ? @white_king : @black_king
-
-    saved_state = Marshal.dump(@chessboard)
-
-    move_type = get_move_type(org_pos,trg_pos,piece)
-    handle_moves(piece,trg_pos,move_type,nil)
-    check_for_check()
-
-    if player_king.in_check
-      @chessboard = Marshal.load(saved_state)
+    elsif pgn[3].class != String #checks if the fourth character is a string eg. 1.*a*4
       return false
     end
     true
   end
-  def get_move_type(org_pos,trg_pos,piece)
+  def move_from_san(san_move,color)
+    san_move_notation = SanMoveNotation.new(san_move,self)
+    if move_legal?(san_move_notation.find_piece(color),san_move_notation.trg_pos,san_move_notation.move_type,san_move_notation.promotion_piece)
+      process_move(san_move_notation.find_piece(color),san_move_notation.trg_pos,san_move_notation.move_type,san_move_notation.promotion_piece)
+      record_move_to_pgn(san_move,color)
+    end
+  end
+ 
+  def process_move(piece,des_pos,move_type,special_info)
+    case move_type
+    when 'castle'
+      execute_castle(piece,des_pos)
+    when 'promotion'
+      execute_move(piece.position,des_pos,{:promotion => true, :promote_piece => special_info, :color => piece.color})
+    when 'en_passant'
+      execute_move(piece.position,des_pos,{:en_passant => true})
+    else
+      execute_move(piece.position,des_pos)
+    end
+  end
+  
+  def move_legal?(piece,trg_pos,move_type,promotion_piece)
+    return false if !move_valid?(piece,trg_pos,move_type,promotion_piece)
+
+    saved_state = Marshal.dump(self)
+
+    player_king = piece.color == 'white' ? @white_king : @black_king
+
+    process_move(piece,trg_pos,move_type,promotion_piece)
+
+    check = player_king.in_check?
+    restored_self = Marshal.load(saved_state)
+    instance_variables.each do |var|
+      instance_variable_set(var, restored_self.instance_variable_get(var))
+    end
+    !check
+  end
+
+  def move_valid?(piece,trg_pos,move_type,promotion_piece)
+    return false if piece == nil
+    if move_type == 'promotion'
+      return false if promotion_piece == nil
+    end
+    piece.possible_moves.include?(trg_pos)
+  end
+
+  def stalemate?(color)
+    player_king = color == 'white' ? @white_king : @black_king
+    return false if player_king.in_check?
+    @pieces.each do |piece|
+      next if piece.color != color
+      piece.possible_moves.each do |move| 
+        if move_legal?(chessboard[piece.position],move,get_move_type_from_position(piece.position,move),nil)
+          return false
+        end
+      end
+    end
+    true
+  end
+  def checkmate?(color)
+    player_king = color == 'white' ? @white_king : @black_king
+    return false if !player_king.in_check?
+    @pieces.each do |piece|
+      next if piece.color != color
+      piece.possible_moves.each do |move| 
+        if move_legal?(chessboard[piece.position],move,get_move_type_from_position(piece.position,move),nil)
+          return false
+        end
+      end
+    end
+    true
+  end
+
+  def get_move_type_from_position(org_pos,trg_pos)
+    piece = chessboard[org_pos]
     if trg_pos[0] == "O"
       move_type = 'castle'
     elsif piece.class == Pawn
@@ -223,45 +198,7 @@ class Chessboard
     end
     move_type
   end
-  def handle_moves(piece,des_pos,move_type,special_info)
-    case move_type
-    when 'castle'
-      perform_castle(piece,des_pos)
-    when 'promotion'
-      promote(piece,des_pos,special_info)
-    when 'en_passant'
-      perform_en_passant(piece,des_pos)
-    else
-      perform_move(piece,des_pos)
-    end
-  end
-  def move(params)
-    piece, des_pos, move_type,special_info,move_notation = params
-    return false unless valid_move?(piece,des_pos,special_info,move_type)
 
-    player_king = piece.color == 'white' ? @white_king : @black_king
-
-    saved_state = Marshal.dump(@chessboard)
-
-    handle_moves(piece,des_pos,move_type,special_info)
-    check_for_check()
-
-    if player_king.in_check
-      @chessboard = Marshal.load(saved_state)
-      return false
-    end
-    if piece.color == 'white'
-      @current_move_number += 1
-    end
-    save_to_pgn(move_notation,piece.color)
-  end
-  def valid_move?(piece,des_pos,special_info,move_type)
-    return false if piece == nil
-    if move_type == 'promotion'
-      return false if special_info == nil
-    end
-    piece.possible_moves.include?(des_pos)
-  end
   def add_piece(piece,des_pos)
     occupying_piece = chessboard[des_pos]
     if !occupying_piece.nil?
@@ -277,30 +214,28 @@ class Chessboard
       chessboard[des_pos] = nil
     end
   end
-  def promote(piece,des_pos,promote_piece)
-    remove_piece(piece.position)
-    piece = promote_piece.new(des_pos,piece.color,self)
-    add_piece(piece,des_pos)
-    @pieces.push(piece)
+  def execute_move(org_pos,trg_pos,special_info = {})
+    if special_info[:promotion]
+      piece = special_info[:promote_piece].new(org_pos,special_info[:color],self)
+    else
+      piece = chessboard[org_pos]
+    end
+    @last_double_step_pawn = piece if is_double_pawn_move?(piece,trg_pos)
+
+    remove_piece(org_pos)
+    add_piece(piece,trg_pos)
+    piece.update_position(trg_pos)
+
+    if special_info[:en_passant]
+      remove_piece("#{trg_pos[0]}#{trg_pos[1].to_i - piece.move_direction}")
+    end
   end
-  def perform_move(piece,des_pos)
-    @last_double_step_pawn = piece if is_double_pawn_move?(piece,des_pos)
-    remove_piece(piece.position)
-    add_piece(piece,des_pos)
-    piece.move(des_pos)
-  end
-  def is_double_pawn_move?(piece,des_pos)
+  def is_double_pawn_move?(piece,trg_pos)
     return false if piece.class != Pawn
-    piece.position[1].to_i + (2*piece.move_direction) == des_pos[1].to_i
+    piece.position[1].to_i + (2*piece.move_direction) == trg_pos[1].to_i
   end
-  def perform_en_passant(piece,des_pos)
-    remove_piece(piece.position)
-    add_piece(piece,des_pos)
-    remove_piece("#{des_pos[0]}#{des_pos[1].to_i - piece.move_direction}")
-    piece.move(des_pos)
-  end
-  def perform_castle(king,castle_type)
-    rook,rook_target_pos,king_target_pos = castle_positions(king,castle_type)
+  def execute_castle(king,castle_type)
+    rook,rook_target_pos,king_target_pos = get_castle_positions(king,castle_type)
 
     remove_piece(king.position)
     remove_piece(rook.position)
@@ -308,10 +243,10 @@ class Chessboard
     add_piece(king,king_target_pos)
     add_piece(rook,rook_target_pos)
     
-    king.move(king_target_pos)
-    rook.move(rook_target_pos)
+    king.update_position(king_target_pos)
+    rook.update_position(rook_target_pos)
   end
-  def castle_positions(king,castle_type)
+  def get_castle_positions(king,castle_type)
     if castle_type == 'O-O'
       rook = chessboard["#{(king.position[0].ord + 3).chr}#{king.position[1]}"]
 
@@ -324,18 +259,6 @@ class Chessboard
       rook_target_pos = "#{rook.position[0].next.next.next}#{king.position[1]}"
     end
     [rook,rook_target_pos,king_target_pos]
-  end
-  def check_for_check()
-    [@white_king,@black_king].each do |king|
-      king.in_check = false
-      @pieces.each do |piece|
-        next if piece.color == king.color
-        if piece.possible_moves.include?(king.position)
-          king.in_check = true
-          break
-        end
-      end
-    end
   end
   def print_board
     RANKS.reverse.each_with_index do |rank,indx|

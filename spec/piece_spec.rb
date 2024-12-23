@@ -8,18 +8,18 @@ describe Piece do
   let(:color) { 'white' }
   subject(:piece) { described_class.new(position, color, board) }
 
-  describe '#move' do
+  describe '#update_position' do
     before do
       piece.define_singleton_method(:possible_moves) do
-      end
+    end
       allow(piece).to receive(:possible_moves)
     end
     let (:new_position) {'e5'}
     it 'updates its positon' do
-      expect{piece.move(new_position)}.to change{piece.position}.from('e4').to('e5')
+      expect{piece.update_position(new_position)}.to change{piece.position}.from('e4').to('e5')
     end
     it 'updates has moved' do
-      expect{piece.move(new_position)}.to change{piece.has_moved}.from(false).to(true)
+      expect{piece.update_position(new_position)}.to change{piece.has_moved}.from(false).to(true)
     end
   end
   describe '#evaluate_move' do

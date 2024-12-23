@@ -21,15 +21,6 @@ class King < Piece
     end
     normal_moves
   end
-  def evaluate_move(move)
-    move_type = super(move)
-    @board.pieces.each do |piece,idx|
-      next if piece.color == @color
-      next if piece.class == King
-      return 'impossible_move' if piece.possible_moves.include?(move)
-    end
-    move_type
-  end
   def castle_moves()
     return if @has_moved
     castle_moves = []
@@ -56,6 +47,15 @@ class King < Piece
       end
     end
     castle_moves
+  end
+  def in_check?()
+    @board.pieces.each do |piece|
+      next if piece.color == @color
+      if piece.possible_moves.include?(@position)
+        return true
+      end
+    end
+    false
   end
   def white_icon
     '♔'
